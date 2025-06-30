@@ -21,10 +21,10 @@ const router = createRouter({
 router.beforeEach((to, from, next) => {
   const store = useWalletStore(); 
   store.loadUserData();
-  console.log("Verificando Usuario:", store.currentUser); 
+  console.log("Verifying user:", store.currentUser); 
 
   if (to.meta.requiresAuth && !store.currentUser) {
-    console.warn("Acceso denegado. Redirigiendo al login...");
+    console.warn("Access denied. Redirect to Login...");
     next('/'); 
   } else {
     next(); 

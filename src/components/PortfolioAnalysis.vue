@@ -3,7 +3,7 @@
     <h1>Portfolio Analysis</h1>
     <div class="portfolio-analysis">
       <h2>MY WALLET</h2>
-      <p>Balance: ${{ walletStore.formattedBalance }}</p>
+      <p>Balance: ${{ totalBalance.toFixed(2) }}</p>
 
       <table>
         <thead>
@@ -15,11 +15,11 @@
           </tr>
         </thead>
         <tbody>
-          <tr v-for="crypto in walletStore.cryptocurrencies" :key="crypto.id">
+          <tr v-for="(crypto, index) in holdings" :key="index">
             <td>{{ crypto.name }}</td>
-            <td>{{ crypto.quantity }}</td>
+            <td>{{ crypto.amount }}</td>
             <td>${{ crypto.price.toFixed(2) }}</td>
-            <td>${{ (crypto.quantity * crypto.price).toFixed(2) }}</td>
+            <td>${{ (crypto.amount * crypto.price).toFixed(2) }}</td>
           </tr>
         </tbody>
       </table>
@@ -28,14 +28,86 @@
 </template>
 
 <script setup>
-import { useWalletStore } from '@/store/useWalletStore';
-import { onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
+import axios from 'axios';
 
-const walletStore = useWalletStore();
+const API_URL = 'https://laboratorio3-f36a.restdb.io/rest/transactions';
+const API_KEY = '60eb09146661365596af552f';
 
-onMounted(() => {
-  walletStore.updateCryptoPrices();
+const transactions = ref([]);
+const prices = ref({});
+const holdings = ref([]);
+
+const symbolToId = {
+  btc: 'bitcoin',
+  eth: 'ethereum',
+  ltc: 'litecoin',
+};
+
+let codigoUsuarioRaw = localStorage.getItem("userId");
+let userId = "";
+try {
+  userId = JSON.parse(codigoUsuarioRaw)?.id || codigoUsuarioRaw;
+} catch {
+  userId = codigoUsuarioRaw;
+}
+
+onMounted(async () => {
+  if (userId) {
+    await fetchTransactions();
+    await fetchPrices();
+    calcularHoldings();
+  }
 });
+
+async function fetchTransactions() {
+  try {
+    const res = await axios.get(`${API_URL}?q={"user_id":"${userId}"}`, {
+      headers: { "x-apikey": API_KEY }
+    });
+    transactions.value = res.data;
+  } catch (err) {
+    console.error('Error to get transactions:', err);
+  }
+}
+
+async function fetchPrices() {
+  try {
+    const res = await axios.get('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,xrp,litecoin&vs_currencies=usd');
+    prices.value = res.data;
+  } catch (err) {
+    console.error('Error to get prices:', err);
+  }
+}
+
+function calcularHoldings() {
+  const wallet = {};
+
+  for (const tx of transactions.value) {
+    const symbol = tx.crypto_code.toLowerCase();
+    const apiId = symbolToId[symbol];
+
+    if (!wallet[symbol]) {
+      wallet[symbol] = {
+        name: symbol.toUpperCase(),
+        amount: 0,
+        price: prices.value[apiId]?.usd || 0,
+      };
+    }
+
+    if (tx.action === 'purchase') {
+      wallet[symbol].amount += tx.crypto_amount;
+    } else if (tx.action === 'sale') {
+      wallet[symbol].amount -= tx.crypto_amount;
+    }
+  }
+
+  holdings.value = Object.values(wallet).filter(c => c.amount > 0);
+}
+
+const totalBalance = computed(() =>
+  holdings.value.reduce((acc, crypto) => acc + (crypto.amount * crypto.price), 0)
+);
 </script>
 
 <style scoped>

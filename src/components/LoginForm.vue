@@ -1,7 +1,8 @@
 <template>
   <div class="login-container">
     <h1>Welcome to CryptoWallet</h1>
-    <h2>{{ isRegistering ? 'Create account' : 'Login' }}</h2>
+    <h2>Invest your money💸</h2>
+    <h3>{{ isRegistering ? 'Create account' : 'Login' }}</h3>
 
     <form @submit.prevent="submitForm">
       <div v-if="isRegistering">
@@ -16,9 +17,6 @@
       </div>
 
       <button type="submit">{{ isRegistering ? 'Register' : 'Login' }}</button>
-      <button v-if="walletStore.currentUser" type="button" @click="handleLogout" class="logout-btn">
-        Log Out
-      </button>
     </form>
 
     <p @click="toggleMode" class="toggle">
@@ -58,52 +56,56 @@ export default {
     const modalMessage = ref('');
 
     const submitForm = () => {
-      passwordError.value = '';
-      confirmPasswordError.value = '';
+  passwordError.value = '';
+  confirmPasswordError.value = '';
 
-      if (isRegistering.value) {
-        if (password.value.length < 8) {
-          passwordError.value = 'The password must be at least 8 characters long.';
-          return;
-        }
-        if (password.value !== confirmPassword.value) {
-          confirmPasswordError.value = 'Passwords do not match.';
-          return;
-        }
+  if (isRegistering.value) {
+  if (password.value.length < 8) {
+    passwordError.value = 'The password must be at least 8 characters long.';
+    return;
+  }
+  if (password.value !== confirmPassword.value) {
+    confirmPasswordError.value = 'Passwords do not match.';
+    return;
+  }
 
-        const newUserId = crypto.randomUUID();
-        const user = {
-          email: email.value,
-          password: password.value,
-          userId: newUserId
-        };
+  const newUserId = crypto.randomUUID();
+  const user = {
+    email: email.value,
+    password: password.value,
+    userId: newUserId
+  };
 
-        localStorage.setItem(newUserId, JSON.stringify(user));
+  localStorage.setItem(newUserId, JSON.stringify(user));
+  localStorage.setItem("userId", newUserId); 
+  walletStore.setUser(newUserId);
 
-        modalTitle.value = 'Successful registration';
-        modalMessage.value = `Your ID: ${newUserId}`;
-        showModal.value = true;
+  const existingIds = JSON.parse(localStorage.getItem("registeredUserIds")) || [];
+  existingIds.push(newUserId);
+  localStorage.setItem("registeredUserIds", JSON.stringify(existingIds));
 
-        isRegistering.value = false;
-        email.value = '';
-        password.value = '';
-        confirmPassword.value = '';
-      } else {
-        const storedUser = localStorage.getItem(userId.value);
-        if (storedUser) {
-          walletStore.setUser(userId.value);
-          walletStore.loadUserData();
-          router.push('/trade');
-        } else {
-          alert('ID not valid');
-        }
-      }
-    };
+  modalTitle.value = 'Successful registration';
+  modalMessage.value = `Your ID: ${newUserId}`;
+  showModal.value = true;
 
-    const handleLogout = () => {
-      walletStore.logout();
-      router.push('/login');
-    };
+  isRegistering.value = false;
+  email.value = '';
+  password.value = '';
+  confirmPassword.value = '';
+}
+ else {
+    const storedUser = localStorage.getItem(userId.value);
+    if (storedUser) {
+      walletStore.setUser(userId.value);
+      router.push('/trade');
+    } else {
+      modalTitle.value = 'Invalid ID';
+      modalMessage.value = 'The entered ID does not exist. Please check or register.';
+      showModal.value = true;
+    }
+  }
+};
+
 
     const toggleMode = () => {
       isRegistering.value = !isRegistering.value;
@@ -118,7 +120,6 @@ export default {
       passwordError,
       confirmPasswordError,
       submitForm,
-      handleLogout,
       toggleMode,
       walletStore,
       showModal,
@@ -176,15 +177,6 @@ button:hover {
   background-color: #255bb8;
 }
 
-.logout-btn {
-  margin-top: 10px;
-  background-color: #e74c3c;
-}
-
-.logout-btn:hover {
-  background-color: #c0392b;
-}
-
 .toggle {
   color: #fafafa;
   cursor: pointer;
@@ -204,7 +196,6 @@ button:hover {
   margin-bottom: 10px;
 }
 
-/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
